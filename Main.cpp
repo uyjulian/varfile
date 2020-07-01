@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <string.h>
+#if 0
 #include <windows.h>
+#endif
 #include "ncbind/ncbind.hpp"
 #include <map>
 
-#define BASENAME L"var"
+#define BASENAME TJS_W("var")
 
 // 辞書かどうかの判定
 static bool isDirectory(tTJSVariant &base) {
@@ -19,13 +21,13 @@ static bool isFile(tTJSVariant &file) {
 /**
  * Variant参照型ストリーム
  */
-class VariantStream : public IStream {
+class VariantStream : public tTJSBinaryStream {
 
 public:
 	/**
 	 * コンストラクタ
 	 */
-	VariantStream(tTJSVariant &parent) : refCount(1), parent(parent), hBuffer(0), stream(0), cur(0) {};
+	VariantStream(tTJSVariant &parent) : refCount(1), parent(parent), stream(0), cur(0) {};
 
 	/**
 	 * ファイルを開く
@@ -41,26 +43,34 @@ public:
 		}
 
 		// 書き込みが必要な場合
+#if 0
 		hBuffer = ::GlobalAlloc(GMEM_MOVEABLE, 0);
 		if (FAILED(::CreateStreamOnHGlobal(hBuffer, FALSE, &stream))) {
 			::GlobalFree(hBuffer);
 			hBuffer = 0;
 			return false;
 		}
+#endif
+		stream = new tTVPMemoryStream();
 
 		// オブジェクトの内容を複製
 		if (flags == TJS_BS_UPDATE || flags == TJS_BS_APPEND) {
 			parent.AsObjectClosureNoAddRef().PropGet(0, name.c_str(), NULL, &value, NULL);
 			if (isFile(value)) {
+#if 0
 				stream->Write(value.AsOctetNoAddRef()->GetData(), value.AsOctetNoAddRef()->GetLength(), NULL);
 				LARGE_INTEGER n;
 				n.QuadPart = 0;
 				stream->Seek(n, flags == TJS_BS_UPDATE ? STREAM_SEEK_SET : STREAM_SEEK_END, NULL);
+#endif
+				stream->Write(value.AsOctetNoAddRef()->GetData(), value.AsOctetNoAddRef()->GetLength());
+				stream->Seek(0, flags == TJS_BS_UPDATE ? TJS_BS_SEEK_SET : TJS_BS_SEEK_END);
 			}
 		}
 		return true;
 	}
 	
+#if 0
 	// IUnknown
 	HRESULT STDMETHODCALLTYPE QueryInterface(REFIID riid, void **ppvObject) {
 		if (riid == IID_IUnknown || riid == IID_ISequentialStream || riid == IID_IStream) {
@@ -88,65 +98,66 @@ public:
 		}
 		return ret;
 	}
+#endif
 
 	// ISequentialStream
-	HRESULT STDMETHODCALLTYPE Read(void *pv, ULONG cb, ULONG *pcbRead) {
+	virtual tjs_uint TJS_INTF_METHOD Read(void *pv, tjs_uint cb) {
 		if (stream) {
-			return stream->Read(pv, cb, pcbRead);
+			return stream->Read(pv, cb);
 		} else {
 			const tjs_uint8 *base = getBase();
 			tTVInteger size = getSize() - cur;
 			if (base && cb > 0 && size > 0) {
 				if (cb > size) {
-					cb = (ULONG)size;
+					cb = size;
 				}
 				memcpy(pv, base + cur, cb);
 				cur += cb;
-				if (pcbRead) {
-					*pcbRead = cb;
-				}
-				return S_OK;
+				return cb;
 			} else {
-				if (pcbRead) {
-					*pcbRead = 0;
-				}
-				return S_FALSE;
+				return 0;
 			}
 		}
 	}
 
-	HRESULT STDMETHODCALLTYPE Write(const void *pv, ULONG cb, ULONG *pcbWritten) {
+	virtual tjs_uint TJS_INTF_METHOD Write(const void *pv, tjs_uint cb) {
 		if (stream) {
-			return stream->Write(pv, cb, pcbWritten);
+			return stream->Write(pv, cb);
 		} else {
-			return E_NOTIMPL;
+			return 0;
 		}
 	}
 
 	// IStream
-	HRESULT STDMETHODCALLTYPE Seek(LARGE_INTEGER dlibMove,	DWORD dwOrigin, ULARGE_INTEGER *plibNewPosition) {
+	virtual tjs_uint64 TJS_INTF_METHOD Seek(tjs_int64 dlibMove, tjs_int dwOrigin) {
 		if (stream) {
-			return stream->Seek(dlibMove, dwOrigin, plibNewPosition);
+			return stream->Seek(dlibMove, dwOrigin);
 		} else {
 			switch (dwOrigin) {
-			case STREAM_SEEK_CUR:
-				cur += dlibMove.QuadPart;
+			case TJS_BS_SEEK_CUR:
+				cur += dlibMove;
 				break;
-			case STREAM_SEEK_SET:
-				cur = dlibMove.QuadPart;
+			case TJS_BS_SEEK_SET:
+				cur = dlibMove;
 				break;
-			case STREAM_SEEK_END:
+			case TJS_BS_SEEK_END:
 				cur = getSize();
-				cur += dlibMove.QuadPart;
+				cur += dlibMove;
 				break;
 			}
-			if (plibNewPosition) {
-				plibNewPosition->QuadPart = cur;
-			}
-			return S_OK;
+			return cur;
 		}
 	}
-	
+
+	virtual tjs_uint64 TJS_INTF_METHOD GetSize() {
+		if (stream) {
+			return stream->GetSize();
+		} else {
+			return getSize();
+		}
+	}
+
+#if 0
 	HRESULT STDMETHODCALLTYPE SetSize(ULARGE_INTEGER libNewSize) {
 		return stream ? stream ->SetSize(libNewSize) : E_NOTIMPL;
 	}
@@ -178,6 +189,7 @@ public:
 	HRESULT STDMETHODCALLTYPE Clone(IStream **ppstm) {
 		return stream ? stream->Clone(ppstm) : E_NOTIMPL;
 	}
+#endif
 
 protected:
 
@@ -186,9 +198,13 @@ protected:
 	 */
 	void close() {
 		if (stream) {
+#if 0
 			stream->Release();
+#endif
+			delete stream;
 			stream = NULL;
 		}
+#if 0
 		if (hBuffer) {
 			// 書き戻し処理
 			if (name != "") {
@@ -202,10 +218,12 @@ protected:
 			::GlobalFree(hBuffer);
 			hBuffer = 0;
 		}
+#endif
 		value.Clear();
 		cur = 0;
 	}
 
+public:
     /**
 	 * デストラクタ
 	 */
@@ -213,13 +231,14 @@ protected:
 		close();
 	}
 
+protected:
 	// 読み込み用メモリ領域取得
 	const tjs_uint8 *getBase() {
 		return isFile(value) ? value.AsOctetNoAddRef()->GetData() : NULL;
 	}
 
 	// 読み込み用メモリサイズ取得
-	tTVInteger getSize() {
+	virtual tjs_uint64 TJS_INTF_METHOD getSize() {
 		return isFile(value) ? value.AsOctetNoAddRef()->GetLength() : 0;
 	}
 
@@ -228,8 +247,7 @@ private:
 	tTJSVariant parent;
 	ttstr name;
 	tTJSVariant value;
-	HGLOBAL hBuffer;
-	IStream *stream;
+	tTJSBinaryStream *stream;
 	tTVInteger cur;
 };
 
@@ -335,11 +353,10 @@ public:
 		tTJSVariant parent = getParentName(name, fname);
 		if (isDirectory(parent) && fname.length() > 0) {
 			VariantStream *stream = new VariantStream(parent);
-			if (stream) {
-				if (stream->open(fname, flags)) {
-					ret = TVPCreateBinaryStreamAdapter(stream);
-				}
-				stream->Release();
+			if (!stream->open(fname, flags)) {
+				delete stream;
+			} else {
+				ret = stream;
 			}
 		}
 		if (!ret) {
@@ -383,9 +400,9 @@ protected:
 		// ドメイン部を分離
 		const tjs_char *p = name.c_str();
 		const tjs_char *q;
-		if ((q = wcschr(p, '/'))) {
+		if ((q = TJS_strchr(p, '/'))) {
 			ttstr dname = ttstr(p, q-p);
-			if (dname != L".") {
+			if (dname != TJS_W(".")) {
 				TVPThrowExceptionMessage(TJS_W("no such domain:%1"), dname);
 			}
 		} else {
@@ -397,7 +414,7 @@ protected:
 		tTJSVariant base(global, global);
 		while (path.length() > 0) {
 			p = path.c_str();
-			q = wcschr(p, '/');
+			q = TJS_strchr(p, '/');
 			if (q == NULL) {
 				// ファイル
 				break;
@@ -410,7 +427,7 @@ protected:
 				ttstr member = ttstr(p, q-p);
 				tTJSVariant value;
 				tTJSVariantClosure &o = base.AsObjectClosureNoAddRef();
-				if (((o.IsInstanceOf(0, NULL, NULL, L"Array", NULL) == TJS_S_TRUE &&
+				if (((o.IsInstanceOf(0, NULL, NULL, TJS_W("Array"), NULL) == TJS_S_TRUE &&
 					  TJS_SUCCEEDED(o.PropGetByNum(0, (tjs_int)TJSStringToInteger(member.c_str()), &value, NULL))) ||
 					 (TJS_SUCCEEDED(o.PropGet(0, member.c_str(), NULL, &value, NULL)))) && isDirectory(value)) {
 					base = value;
