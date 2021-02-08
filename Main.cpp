@@ -201,6 +201,8 @@ protected:
 #if 0
 			stream->Release();
 #endif
+			value = tTJSVariant((const tjs_uint8*)stream->GetInternalBuffer(), stream->GetSize());
+			parent.AsObjectClosureNoAddRef().PropSet(TJS_MEMBERENSURE, name.c_str(), NULL, &value, NULL);
 			delete stream;
 			stream = NULL;
 		}
@@ -247,7 +249,7 @@ private:
 	tTJSVariant parent;
 	ttstr name;
 	tTJSVariant value;
-	tTJSBinaryStream *stream;
+	tTVPMemoryStream *stream;
 	tTVInteger cur;
 };
 
