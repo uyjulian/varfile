@@ -328,8 +328,8 @@ public:
 	// open a storage and return a tTJSBinaryStream instance.
 	// name does not contain in-archive storage name but
 	// is normalized.
-	virtual tTJSBinaryStream * TJS_INTF_METHOD Open(const ttstr & name, tjs_uint32 flags) {
-		tTJSBinaryStream *ret = NULL;
+	virtual iTJSBinaryStream * TJS_INTF_METHOD Open(const ttstr & name, tjs_uint32 flags) {
+		iTJSBinaryStream *ret = NULL;
 		ttstr fname;
 		tTJSVariant parent = getParentName(name, fname);
 		if (isDirectory(parent) && fname.length() > 0) {
