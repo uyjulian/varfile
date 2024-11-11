@@ -6,6 +6,8 @@
 
 #define BASENAME L"var"
 
+#define iTJSBinaryStream tTJSBinaryStream
+
 // 辞書かどうかの判定
 static bool isDirectory(tTJSVariant &base) {
 	return base.Type() == tvtObject && base.AsObjectNoAddRef() != NULL;
@@ -329,17 +331,8 @@ public:
 	// open a storage and return a tTJSBinaryStream instance.
 	// name does not contain in-archive storage name but
 	// is normalized.
-#if 1
-	virtual tTJSBinaryStream * TJS_INTF_METHOD Open(const ttstr & name, tjs_uint32 flags)
-#else
-	virtual iTJSBinaryStream * TJS_INTF_METHOD Open(const ttstr & name, tjs_uint32 flags)
-#endif
-	{
-#if 1
-		tTJSBinaryStream *ret = NULL;
-#else
+	virtual iTJSBinaryStream * TJS_INTF_METHOD Open(const ttstr & name, tjs_uint32 flags) {
 		iTJSBinaryStream *ret = NULL;
-#endif
 		ttstr fname;
 		tTJSVariant parent = getParentName(name, fname);
 		if (isDirectory(parent) && fname.length() > 0) {
