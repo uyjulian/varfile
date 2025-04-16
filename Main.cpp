@@ -4,7 +4,7 @@
 #include "ncbind.hpp"
 #include <map>
 
-#define BASENAME L"var"
+#define BASENAME TJS_W("var")
 
 // 辞書かどうかの判定
 static bool isDirectory(tTJSVariant &base) {
@@ -384,7 +384,7 @@ protected:
 		const tjs_char *q;
 		if ((q = wcschr(p, '/'))) {
 			ttstr dname = ttstr(p, q-p);
-			if (dname != L".") {
+			if (dname != TJS_W(".")) {
 				TVPThrowExceptionMessage(TJS_W("no such domain:%1"), dname);
 			}
 		} else {
@@ -409,7 +409,7 @@ protected:
 				ttstr member = ttstr(p, q-p);
 				tTJSVariant value;
 				tTJSVariantClosure &o = base.AsObjectClosureNoAddRef();
-				if (((o.IsInstanceOf(0, NULL, NULL, L"Array", NULL) == TJS_S_TRUE &&
+				if (((o.IsInstanceOf(0, NULL, NULL, TJS_W("Array"), NULL) == TJS_S_TRUE &&
 					  TJS_SUCCEEDED(o.PropGetByNum(0, (tjs_int)TJSStringToInteger(member.c_str()), &value, NULL))) ||
 					 (TJS_SUCCEEDED(o.PropGet(0, member.c_str(), NULL, &value, NULL)))) && isDirectory(value)) {
 					base = value;
